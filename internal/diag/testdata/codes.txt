@@ -1,3 +1,5 @@
 # Every finding code ever shipped, one per line.
 # Append-only: never remove or renumber a line. A test fails if a code listed
 # here is missing from the registry, or if a registry code is not listed here.
+MCP_DISC_001
+MCP_DISC_002

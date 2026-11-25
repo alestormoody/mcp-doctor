@@ -1,0 +1,10 @@
+{
+  // VS Code mcp.json is JSON with comments
+  "servers": {
+    "fetch": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    }
+  }
+}

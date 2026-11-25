@@ -14,3 +14,5 @@ do not run on that platform.
 Windows on arm64 is not planned for v0.1.
 
 The minimum Go version to build from source is 1.26.
+
+Config file locations per OS: [Supported clients and config paths](clients.md).

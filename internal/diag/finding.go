@@ -50,7 +50,10 @@ type Finding struct {
 }
 
 // registry is the single source of truth for finding codes. Append-only: never remove, renumber or reuse a code; record each new code in testdata/codes.txt.
-var registry = []CodeInfo{}
+var registry = []CodeInfo{
+	{Code: "MCP_DISC_001", Category: "discovery", Title: "Config file cannot be read", DefaultSeverity: SeverityWarning},
+	{Code: "MCP_DISC_002", Category: "discovery", Title: "Config location cannot be resolved", DefaultSeverity: SeverityWarning},
+}
 
 var codePattern = regexp.MustCompile(`^MCP_[A-Z]+_[0-9]{3}$`)
 

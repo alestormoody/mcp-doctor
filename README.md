@@ -2,7 +2,7 @@
 
 MCP Doctor is a local, read-only-by-default command-line tool that diagnoses Model Context Protocol (MCP) server configurations across AI clients.
 
-**Status:** Pre-alpha: not usable yet. Only `mcp-doctor version` exists.
+**Status:** Pre-alpha: not usable yet. `mcp-doctor clients` lists where five AI clients keep their MCP config files (read-only, no parsing yet); `mcp-doctor version` prints the version.
 
 Planned milestones: see [docs/roadmap.md](docs/roadmap.md).
 
@@ -12,6 +12,7 @@ MCP Doctor (https://github.com/alestormoody/mcp-doctor) is a separate project. N
 
 ## Documentation
 
+- [Supported clients and config paths](docs/clients.md)
 - [OS support](docs/os-support.md)
 - [Exit codes](docs/exit-codes.md)
 - [Roadmap](docs/roadmap.md)

@@ -7,12 +7,13 @@ MCP Doctor is one Go module that builds one binary, `mcp-doctor`.
 | Package | Purpose |
 | ------- | ------- |
 | `cmd/mcp-doctor` | Entry point. Calls `cli.Execute` and exits with its code. |
-| `internal/cli` | Cobra commands. Only `version` exists. |
+| `internal/cli` | Cobra commands: `version` and `clients`. |
+| `internal/clients` | Read-only discovery of each client's config file locations (one file per client). Only stats and opens-then-closes files. |
 | `internal/diag` | Diagnostic core: `Secret`, `Finding`, `Severity`, the finding-code registry and exit codes. |
 
 ## Planned layering
 
-Planned, not implemented yet. Packages are added in this order, each one only in the
+Only `cli`, `clients` and `diag` exist today. Packages are added in this order, each one only in the
 milestone that fills it with code:
 
 ```text
@@ -21,7 +22,7 @@ cli        (commands, output)
   backup   (atomic writes, backups, restore)
   probe    (consent-gated protocol tests)
   checks   (static checks that produce findings)
-  clients  (per-client discovery and config locations)
+  clients  (per-client discovery and config locations) (present)
   config   (JSON, JSONC and TOML parsing)
   model    (normalized server model with provenance)
 diag       (findings, codes, secrets, exit codes; used by every layer)
