@@ -301,3 +301,59 @@ func TestJSONBytesIdentity(t *testing.T) {
 		}
 	}
 }
+
+func FuzzParseJSON(f *testing.F) {
+	for _, dir := range []string{jsonDir, spikeDir} {
+		for name, b := range readCorpus(f, dir) {
+			if strings.HasSuffix(name, ".toml") {
+				continue
+			}
+			for _, vb := range variants(b) {
+				f.Add(vb)
+			}
+		}
+	}
+	f.Fuzz(func(t *testing.T, src []byte) {
+		for _, strict := range []bool{false, true} {
+			doc, ps := ParseJSON(src, strict)
+			for _, p := range ps {
+				if p.Line < 0 || p.Col < 0 || !messages[p.Message] {
+					t.Fatalf("bad problem %+v", p)
+				}
+			}
+			if (doc == nil) != (len(jsonKinds(ps, KindSyntax)) > 0) {
+				t.Fatalf("doc=%v problems=%+v", doc, ps)
+			}
+			if doc == nil {
+				continue
+			}
+			_, _, addedNL := prepare(src)
+			if !bytes.Equal(unprepare(doc.root.Pack(), doc.BOM, addedNL), src) {
+				t.Fatal("pack is not byte-identical")
+			}
+			if len(doc.std) != len(doc.body) {
+				t.Fatalf("standardized length %d != %d", len(doc.std), len(doc.body))
+			}
+			jsonWalk(t, doc.Root(), 3)
+		}
+	})
+}
+
+// jsonWalk decodes every member down to depth levels and checks each problem message.
+func jsonWalk(t *testing.T, m Member, depth int) {
+	if p := m.Decode(new(any)); p != nil && !messages[p.Message] {
+		t.Fatalf("bad decode problem %+v", p)
+	}
+	if depth == 0 {
+		return
+	}
+	ms, _, ps := m.Members()
+	for _, p := range ps {
+		if !messages[p.Message] {
+			t.Fatalf("bad member problem %+v", p)
+		}
+	}
+	for _, c := range ms {
+		jsonWalk(t, c, depth-1)
+	}
+}
