@@ -23,7 +23,7 @@ type snapEntry struct {
 func snapshot(t *testing.T, root string) map[string]snapEntry {
 	t.Helper()
 	m := map[string]snapEntry{}
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(p string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
