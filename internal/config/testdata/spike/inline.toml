@@ -1,0 +1,4 @@
+# servers
+[mcp_servers]
+a = { command = "x", args = ["1"] }
+b = { url = "https://example.test/mcp" }

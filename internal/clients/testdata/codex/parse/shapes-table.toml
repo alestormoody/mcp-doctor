@@ -1,0 +1,12 @@
+# Codex user config
+model = "x"
+
+[mcp_servers.docs]
+command = "npx"
+args = ["--token", "CANARY-a"]
+
+[mcp_servers.docs.env]
+K = "CANARY-e"
+
+[other]
+x = 1

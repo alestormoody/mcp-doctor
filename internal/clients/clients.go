@@ -1,5 +1,6 @@
-// Package clients finds the MCP configuration files of supported AI clients.
-// It only stats and opens-then-closes files; it never reads, writes or lists beyond fixed locations.
+// Package clients finds the MCP configuration files of supported AI clients and maps them onto one server model.
+// Discovery only stats and opens-then-closes files at fixed locations; Load then reads each found config file
+// through Env.ReadFile. Nothing in this package ever writes.
 package clients
 
 import (
@@ -14,11 +15,12 @@ import (
 // Scope is where a config file applies.
 type Scope string
 
-// The three scopes a candidate may have.
+// The scopes a server may have; candidates use the first three.
 const (
 	ScopeManaged Scope = "managed"
 	ScopeUser    Scope = "user"
 	ScopeProject Scope = "project"
+	ScopeLocal   Scope = "local" // Claude Code projects[<cwd>] entries in ~/.claude.json
 )
 
 // Format is the file syntax of a config file.
@@ -49,6 +51,7 @@ type Env struct {
 	Lstat           func(string) (fs.FileInfo, error) // only used after Stat says not-exist (broken symlink)
 	ReadDir         func(string) ([]fs.DirEntry, error)
 	Open            func(string) (io.Closer, error) // opened and closed at once; never read
+	ReadFile        func(string) ([]byte, error)    // used by Load only; the caller bounds it to MaxFileSize+1 bytes
 }
 
 // Candidate is one location a client may read its MCP config from.
@@ -70,8 +73,10 @@ type File struct {
 // Client is one supported AI client.
 type Client struct {
 	ID, Name   string
-	candidates func(Env) []Candidate // ordered: managed, user, project
-	homes      func(Env) []string    // config home dirs whose existence means "detected"
+	candidates func(Env) []Candidate                                    // ordered: managed, user, project
+	homes      func(Env) []string                                       // config home dirs whose existence means "detected"
+	parse      func(env Env, files []Loaded) ([]Server, []diag.Finding) // every file of this client read by Load, in discovery order
+	rank       func(Source) (int, bool)                                 // nil: precedence not documented; ok=false: entry neither shadows nor is shadowed
 }
 
 // Result is the discovery outcome for one client.
@@ -83,11 +88,16 @@ type Result struct {
 
 // all is the client table, in display order.
 var all = []Client{
-	{ID: "claude-code", Name: "Claude Code", candidates: claudeCodeCandidates, homes: claudeCodeHomes},
-	{ID: "codex", Name: "Codex", candidates: codexCandidates, homes: codexHomes},
-	{ID: "claude-desktop", Name: "Claude Desktop", candidates: claudeDesktopCandidates, homes: claudeDesktopHomes},
-	{ID: "cursor", Name: "Cursor", candidates: cursorCandidates, homes: cursorHomes},
-	{ID: "vscode", Name: "VS Code", candidates: vscodeCandidates, homes: vscodeHomes},
+	{ID: "claude-code", Name: "Claude Code", candidates: claudeCodeCandidates, homes: claudeCodeHomes,
+		parse: parseClaudeCode, rank: claudeCodeRank},
+	{ID: "codex", Name: "Codex", candidates: codexCandidates, homes: codexHomes,
+		parse: parseCodex, rank: codexRank},
+	{ID: "claude-desktop", Name: "Claude Desktop", candidates: claudeDesktopCandidates, homes: claudeDesktopHomes,
+		parse: parseClaudeDesktop},
+	{ID: "cursor", Name: "Cursor", candidates: cursorCandidates, homes: cursorHomes,
+		parse: parseCursor},
+	{ID: "vscode", Name: "VS Code", candidates: vscodeCandidates, homes: vscodeHomes,
+		parse: parseVSCode},
 }
 
 // userConfigDir mirrors os.UserConfigDir for env.GOOS: https://pkg.go.dev/os#UserConfigDir

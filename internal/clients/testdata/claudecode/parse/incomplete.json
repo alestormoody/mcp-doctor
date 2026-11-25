@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "no-target": {"args": ["x"]},
+    "url-no-type": {"url": "https://u.example/CANARY-u"},
+    "http-no-url": {"type": "http", "command": "x"},
+    "bad-args": {"command": "x", "args": "CANARY-a"},
+    "typo": {"comand": "x", "command": "y"},
+    "ok": {"command": "z"}
+  }
+}

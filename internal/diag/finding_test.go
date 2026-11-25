@@ -100,3 +100,18 @@ func TestFindingValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestParseCodes(t *testing.T) {
+	want := map[string]Severity{
+		"MCP_PARSE_001": SeverityError, "MCP_PARSE_002": SeverityError, "MCP_PARSE_003": SeverityError,
+		"MCP_PARSE_004": SeverityWarning, "MCP_PARSE_005": SeverityInfo, "MCP_PARSE_006": SeverityWarning,
+		"MCP_PARSE_007": SeverityWarning, "MCP_PARSE_008": SeverityError, "MCP_PARSE_009": SeverityWarning,
+		"MCP_PARSE_010": SeverityInfo,
+	}
+	for code, sev := range want {
+		c, ok := Lookup(code)
+		if !ok || c.Category != "parse" || c.DefaultSeverity != sev || c.Title == "" {
+			t.Errorf("%s: got %+v, %v; want category parse, severity %s", code, c, ok, sev)
+		}
+	}
+}

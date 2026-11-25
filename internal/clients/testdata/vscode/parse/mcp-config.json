@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "copilot-local": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "@example/server"],
+      "cwd": "/srv/tool",
+      "env": { "T": "${TOKEN}" },
+      "tools": ["*"],
+      "envFile": ".env"
+    }
+  }
+}

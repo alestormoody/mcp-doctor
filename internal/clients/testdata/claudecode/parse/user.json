@@ -1,0 +1,19 @@
+{
+  "numStartups": 12,
+  "history": [{"display": "CANARY-history", "pastedContents": {}}],
+  "mcpServers": {
+    "shared": {"command": "user-shared"},
+    "user-only": {"command": "user-only"}
+  },
+  "projects": {
+    "/other/proj": {
+      "mcpServers": {"other": {"command": "other"}},
+      "disabledMcpServers": ["user-only"]
+    },
+    "<CWD>": {
+      "history": [{"display": "CANARY-local-history"}],
+      "mcpServers": {"shared": {"command": "local-shared"}, "local-only": {"command": "local-only"}},
+      "disabledMcpServers": ["shared", "proj-off"]
+    }
+  }
+}

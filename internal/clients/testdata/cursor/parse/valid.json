@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "local": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/srv.js"],
+      "env": {"K": "${env:API_KEY}"},
+      "envFile": ".env"
+    },
+    "remote": {
+      "url": "https://h.example/mcp?key=CANARY-q",
+      "headers": {"Authorization": "Bearer CANARY-h"},
+      "auth": {"CLIENT_ID": "${env:CID}", "CLIENT_SECRET": "CANARY-s", "scopes": ["a"]}
+    }
+  }
+}

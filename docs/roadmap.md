@@ -1,12 +1,12 @@
 # Roadmap
 
-Milestones, in order. M00 and M01 are done; everything else is planned.
+Milestones, in order. M00, M01 and M02 are done; everything else is planned.
 
 | Milestone | Goal | Status |
 | --------- | ---- | ------ |
 | M00 Foundation | Buildable repository, three-OS CI, release skeleton, docs and the thin diagnostic core | done |
 | M01 Discovery | Read-only adapters for five AI clients and `mcp-doctor clients` | done |
-| M02 Parsing | JSON, JSONC and TOML into a normalized model that tracks where each value came from | planned |
+| M02 Parsing | JSON, JSONC and TOML into a normalized model that tracks where each value came from | done |
 | M03 Dependencies | Static checks for runtimes, environment variables, permissions, working directories and endpoints | planned |
 | M04 Protocol | Consent-gated `test` over stdio and Streamable HTTP | planned |
 | M05 Diagnostic engine | Stable codes, human and JSON output, exit codes and `scan` | planned |

@@ -1,0 +1,6 @@
+{
+  // added by hand
+  "mcpServers": {
+    "filesystem": {"command": "npx", "args": ["-y", "pkg"],},
+  }
+}

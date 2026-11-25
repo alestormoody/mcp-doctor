@@ -1,0 +1,4 @@
+model = "m"
+mcp_servers.a.command = "x"
+mcp_servers.a.args = ["1"]
+mcp_servers.b.url = "https://example.test/mcp"

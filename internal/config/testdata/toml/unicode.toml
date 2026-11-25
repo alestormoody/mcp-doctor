@@ -1,0 +1,4 @@
+# サーバー
+[mcp_servers."café"]
+command = "ñ-x"
+args = ["日本語"]

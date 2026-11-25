@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "shared": {"command": "project-shared"},
+    "proj-off": {"command": "proj-off"}
+  }
+}

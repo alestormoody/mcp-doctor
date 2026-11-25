@@ -1,0 +1,6 @@
+{
+  // サーバー
+  "mcpServers": {
+    "café": {"command": "nödé", "args": ["日本"]}
+  }
+}

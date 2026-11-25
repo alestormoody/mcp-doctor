@@ -1,0 +1,28 @@
+{
+  // user-level VS Code MCP config
+  "inputs": [
+    { "type": "promptString", "id": "api-key", "description": "API key", "password": true }
+  ],
+  "servers": {
+    "local-tool": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/x", "${env:HOME_DIR}", "${input:missing}"],
+      "cwd": "${userHome}/work",
+      "env": { "K": "${input:api-key}" },
+      "envFile": "${workspaceFolder}/.env"
+    },
+    "remote": {
+      "type": "http",
+      "url": "https://h.example/mcp/CANARY-p",
+      "headers": { "Authorization": "Bearer CANARY-h" } // inline comment
+    },
+    "inferred": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+    }
+  },
+  "mcpServers": {
+    "ignored": { "command": "nope" }
+  }
+}

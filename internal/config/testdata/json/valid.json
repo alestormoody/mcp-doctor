@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "a": {
+      "command": "node",
+      "args": ["server.js"]
+    },
+    "b": {
+      "url": "https://example.com/mcp"
+    }
+  }
+}

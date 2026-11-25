@@ -1,0 +1,11 @@
+// user servers
+{
+  "mcpServers": {
+    /* first server */
+    "a": {
+      "command": "node", // the runtime
+      "args": ["server.js"]
+    },
+    "b": {"url": "https://example.com/mcp"}
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "a": {"env": {"K": CANARY-bareword-123}}
+  }
+}

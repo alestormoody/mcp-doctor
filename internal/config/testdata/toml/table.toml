@@ -1,0 +1,9 @@
+model = "m"
+
+# server a
+[mcp_servers.a]
+command = "x"
+args = ["--verbose"]
+
+[mcp_servers.b]
+url = "https://example.test/mcp"

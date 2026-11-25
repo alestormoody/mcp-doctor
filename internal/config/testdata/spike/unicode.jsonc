@@ -1,0 +1,7 @@
+{
+  // café
+  "mcpServers": {
+    "日本語": { "command": "x", "args": ["é", "✓"] },
+    "a": { "command": "x" }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "a": {
+      "command": "x",
+      "args": ["--port", "1"]
+    },
+    "b": {
+      "url": "https://example.test/mcp"
+    }
+  }
+}

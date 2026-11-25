@@ -1,0 +1,11 @@
+{
+  "inputs": [{ "id": "x", "type": "promptString" }],
+  "servers": { "ignored": { "command": "nope" } },
+  "mcpServers": {
+    "shared": {
+      "command": "${BIN:-uvx}",
+      "args": ["tool", "$LITERAL"],
+      "cwd": "sub"
+    }
+  }
+}

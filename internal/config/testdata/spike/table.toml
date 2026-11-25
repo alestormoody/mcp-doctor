@@ -1,0 +1,13 @@
+model = "m"
+
+# first server
+[mcp_servers.a]
+command = "x" # the binary
+args = ["--verbose"]
+
+# second server
+[mcp_servers.b]
+url = "https://example.test/mcp"
+
+[mcp_servers.a.env]
+KEY = "v"

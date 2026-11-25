@@ -3,3 +3,13 @@
 # here is missing from the registry, or if a registry code is not listed here.
 MCP_DISC_001
 MCP_DISC_002
+MCP_PARSE_001
+MCP_PARSE_002
+MCP_PARSE_003
+MCP_PARSE_004
+MCP_PARSE_005
+MCP_PARSE_006
+MCP_PARSE_007
+MCP_PARSE_008
+MCP_PARSE_009
+MCP_PARSE_010
