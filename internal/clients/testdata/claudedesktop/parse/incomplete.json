@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "empty": {},
+    "badargs": {"command": "npx", "args": 5}
+  }
+}

@@ -1,0 +1,3 @@
+{
+  "mcpServers": {
+    "fs": {"command": "npx", "env": {"K": "CANARY-c

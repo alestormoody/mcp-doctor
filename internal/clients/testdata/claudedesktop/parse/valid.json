@@ -1,0 +1,10 @@
+{
+  "globalShortcut": "",
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${APPDATA}"],
+      "env": {"KEY": "CANARY-e"}
+    }
+  }
+}
