@@ -201,3 +201,40 @@ func TestTOMLZeroDoc(t *testing.T) {
 		t.Error("zero doc not safe")
 	}
 }
+
+func FuzzParseTOML(f *testing.F) {
+	seeds := readCorpus(f, tomlDir)
+	for name, b := range readCorpus(f, spikeDir) {
+		if strings.HasSuffix(name, ".toml") {
+			seeds["spike/"+name] = b
+		}
+	}
+	for _, b := range seeds {
+		for _, v := range variants(b) {
+			f.Add(v)
+		}
+	}
+	f.Fuzz(func(t *testing.T, src []byte) {
+		doc, probs := ParseTOML(src)
+		syntax := false
+		for _, p := range probs {
+			if p.Line < 0 || p.Col < 0 || !messages[p.Message] {
+				t.Fatalf("bad problem %+v", p)
+			}
+			syntax = syntax || p.Kind == KindSyntax
+		}
+		if (doc == nil) != syntax {
+			t.Fatalf("doc nil = %v, syntax problem = %v", doc == nil, syntax)
+		}
+		if doc == nil {
+			return
+		}
+		orig, _ := bytes.CutPrefix(src, []byte("\xEF\xBB\xBF"))
+		for _, k := range doc.keys {
+			doc.Pos(k.Path...)
+			if b := doc.Bytes(k.Path...); b != nil && !bytes.Contains(orig, b) {
+				t.Fatalf("Bytes(%q) = %q not in input", k.Path, b)
+			}
+		}
+	})
+}

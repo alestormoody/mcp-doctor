@@ -58,7 +58,9 @@ func appendKeyValue(keys []tomlKey, kv *unstable.Node, prefix []string) []tomlKe
 	if v := kv.Value(); v.Kind == unstable.InlineTable {
 		it := v.Children()
 		for it.Next() {
-			keys = appendKeyValue(keys, it.Node(), path)
+			if n := it.Node(); n.Kind == unstable.KeyValue { // multi-line inline tables also hold Comment nodes
+				keys = appendKeyValue(keys, n, path)
+			}
 		}
 	}
 	return keys
