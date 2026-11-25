@@ -1,0 +1,51 @@
+name: Bug report
+description: Report something that does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste secrets: redact tokens, API keys and env values.**
+        To report a vulnerability, use private vulnerability reporting instead of an issue.
+  - type: textarea
+    id: version
+    attributes:
+      label: "`mcp-doctor version` output"
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: clients
+    attributes:
+      label: AI client(s)
+      description: For example Claude Code, Codex, Claude Desktop, Cursor, VS Code.
+  - type: input
+    id: command
+    attributes:
+      label: Command run
+      placeholder: mcp-doctor version
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the exit code (`echo $?`, or `echo $LASTEXITCODE` in PowerShell).
+    validations:
+      required: true
