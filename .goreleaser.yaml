@@ -1,0 +1,41 @@
+version: 2
+
+project_name: mcp-doctor
+
+builds:
+  - id: mcp-doctor
+    main: ./cmd/mcp-doctor
+    binary: mcp-doctor
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w -X github.com/alestormoody/mcp-doctor/internal/cli.version={{.Version}} -X github.com/alestormoody/mcp-doctor/internal/cli.commit={{.Commit}} -X github.com/alestormoody/mcp-doctor/internal/cli.date={{.CommitDate}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+# publishing, signing, SBOM and Homebrew are added in M09
+release:
+  disable: true
