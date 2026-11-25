@@ -338,3 +338,34 @@ func codexMust[T any](v T, err error) T {
 	}
 	return v
 }
+
+func FuzzParseCodex(f *testing.F) {
+	for _, dir := range []string{"testdata/codex/parse", "testdata/codex"} {
+		for _, b := range readFixtures(f, dir) {
+			f.Add(b)
+		}
+	}
+	env := fakeEnv("linux", nil)
+	user := jsonFile("/h/.codex/config.toml", FormatTOML, ScopeUser)
+	proj := jsonFile("/w/proj/.codex/config.toml", FormatTOML, ScopeProject)
+	f.Fuzz(func(t *testing.T, src []byte) {
+		body := stripBOM(src)
+		check := func(ss []Server, fds []diag.Finding) {
+			for _, fd := range fds {
+				if err := fd.Validate(); err != nil || fd.Client != "codex" {
+					t.Errorf("finding %+v: %v", fd, err)
+				}
+			}
+			for _, s := range ss {
+				if s.raw != nil && !bytes.Contains(body, *s.raw) {
+					t.Errorf("raw of %q not in input", s.Name)
+				}
+			}
+		}
+		for _, file := range []File{user, proj} {
+			ss, _, fds := codexFile(env, file, src)
+			check(ss, fds)
+		}
+		check(parseCodex(env, []Loaded{{File: user, Src: src}, {File: proj, Src: src}}))
+	})
+}
