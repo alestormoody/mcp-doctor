@@ -27,7 +27,7 @@ make check
 | `make race` | `go test -race ./...` |
 | `make vet` | `go vet ./...` |
 | `make lint` | `golangci-lint run` |
-| `make vuln` | `govulncheck ./...` |
+| `make vuln` | `govulncheck ./...` (v1.10.0, via `go run`) |
 
 See [docs/testing.md](docs/testing.md) for the CI gates and test style.
 
