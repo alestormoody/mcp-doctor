@@ -27,7 +27,9 @@ func snapshot(t *testing.T, root string) map[string]snapEntry {
 		if err != nil {
 			return err
 		}
-		info, err := d.Info()
+		// os.Lstat, not d.Info(): on Windows the directory listing carries stale
+		// directory mtimes (NTFS updates them lazily), which made the snapshot flaky.
+		info, err := os.Lstat(p)
 		if err != nil {
 			return err
 		}
