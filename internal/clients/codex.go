@@ -5,6 +5,7 @@ package clients
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -33,10 +34,30 @@ func codexCandidates(env Env) []Candidate {
 			}
 		}
 	}
-	if env.Cwd != "" {
-		cs = append(cs, Candidate{Scope: ScopeProject, Path: filepath.Join(env.Cwd, ".codex", "config.toml"), Format: FormatTOML})
+	// Codex only loads these for trusted projects; discovery lists them regardless (trust is checked in M02).
+	for _, d := range codexProjectDirs(env) {
+		cs = append(cs, Candidate{Scope: ScopeProject, Path: filepath.Join(d, ".codex", "config.toml"), Format: FormatTOML})
 	}
 	return cs
+}
+
+// codexProjectDirs is every dir from the nearest ancestor holding .git (file or dir) down to Cwd,
+// or just Cwd when no ancestor has one. The walk stops at the filesystem root.
+func codexProjectDirs(env Env) []string {
+	if env.Cwd == "" {
+		return nil
+	}
+	var up []string
+	for d := env.Cwd; ; d = filepath.Dir(d) {
+		up = append(up, d)
+		if _, err := env.Stat(filepath.Join(d, ".git")); err == nil {
+			slices.Reverse(up)
+			return up
+		}
+		if filepath.Dir(d) == d {
+			return []string{env.Cwd}
+		}
+	}
 }
 
 func codexHomes(env Env) []string {
