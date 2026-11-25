@@ -3,7 +3,11 @@ package clients
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
 )
 
 // fullFixture places every client's user and project files in one fixtureEnv tree:
@@ -100,5 +104,73 @@ func TestSharedMcpJSONNotDetection(t *testing.T) {
 		if listed != wantListed || (listed && st != StatusFound) {
 			t.Errorf("%s: shared file listed=%v status=%q", r.ID, listed, st)
 		}
+	}
+}
+
+func TestLoadAllClients(t *testing.T) {
+	env, _ := fullFixture(t)
+	results, servers, findings := Load(env)
+	for _, f := range findings {
+		if f.Severity == diag.SeverityError || f.Severity == diag.SeverityCritical {
+			t.Errorf("error finding: %+v", f)
+		}
+	}
+	found := map[string]bool{}
+	for _, r := range results {
+		for _, f := range r.Files {
+			if f.Status == StatusFound {
+				found[r.ID+"\x00"+f.Path] = true
+			}
+		}
+	}
+	perClient := map[string]int{}
+	for _, s := range servers {
+		perClient[s.Source.Client]++
+		if !filepath.IsAbs(s.Source.Path) || !found[s.Source.Client+"\x00"+s.Source.Path] {
+			t.Errorf("%s/%s: source %s is not a found file of that client", s.Source.Client, s.Name, s.Source.Path)
+		}
+		if s.Source.Line <= 0 {
+			t.Errorf("%s/%s: line %d", s.Source.Client, s.Name, s.Source.Line)
+		}
+	}
+	for _, r := range results {
+		if perClient[r.ID] == 0 {
+			t.Errorf("no server for %s", r.ID)
+		}
+	}
+}
+
+func TestSharedMcpJSONParsedPerClient(t *testing.T) {
+	env, _ := fixtureEnv(t)
+	shared := filepath.Join(env.Cwd, ".mcp.json")
+	writeFileBytes(t, shared, `{"inputs": [], "mcpServers": {"a": {"command": "x", "args": ["${A:-x}"]}}}`)
+	_, servers, findings := Load(env)
+	byClient := map[string][]Server{}
+	for _, s := range servers {
+		if s.Source.Path == shared {
+			byClient[s.Source.Client] = append(byClient[s.Source.Client], s)
+		}
+	}
+	want := []VarRef{{Field: "args[0]", Kind: "env", Name: "A", HasDefault: true}}
+	for _, id := range []string{"claude-code", "vscode"} {
+		ss := byClient[id]
+		if len(ss) != 1 || ss[0].Name != "a" {
+			t.Errorf("%s: servers %+v", id, ss)
+			continue
+		}
+		if !reflect.DeepEqual(ss[0].Refs, want) {
+			t.Errorf("%s: refs %+v, want %+v", id, ss[0].Refs, want)
+		}
+	}
+	if len(byClient) != 2 {
+		t.Errorf("shared file parsed by %d clients, want 2", len(byClient))
+	}
+	for _, f := range findings {
+		if f.Code == "MCP_PARSE_005" && f.Client != "vscode" {
+			t.Errorf("005 for %s: %+v", f.Client, f)
+		}
+	}
+	if !strings.Contains(parseCodes(findings), "MCP_PARSE_005") {
+		t.Errorf("no 005 for inputs in the portable file: %s", parseCodes(findings))
 	}
 }

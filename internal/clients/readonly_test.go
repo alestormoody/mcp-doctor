@@ -69,6 +69,17 @@ func TestReadOnlySnapshot(t *testing.T) {
 	env, root := fullFixture(t)
 	before := snapshot(t, root)
 	Discover(env)
+	Load(env)
+	sameSnapshot(t, before, snapshot(t, root))
+
+	// Corrupted JSON and TOML files are parsed (and rejected) without being touched either.
+	env, root = fullFixture(t)
+	writeFileBytes(t, filepath.Join(env.Home, ".cursor", "mcp.json"), `{"mcpServers": {`)
+	writeFileBytes(t, filepath.Join(env.Home, ".codex", "config.toml"), "[mcp_servers.x\ncommand = \"a")
+	before = snapshot(t, root)
+	if _, _, findings := Load(env); strings.Count(parseCodes(findings), "MCP_PARSE_001") != 2 {
+		t.Errorf("corrupted files not reported: %s", parseCodes(findings))
+	}
 	sameSnapshot(t, before, snapshot(t, root))
 
 	// A config path that is a directory: unreadable, still nothing changes.
@@ -84,6 +95,7 @@ func TestReadOnlySnapshot(t *testing.T) {
 	if _, findings := Discover(env); len(findings) != 1 || findings[0].Code != "MCP_DISC_001" {
 		t.Errorf("findings = %+v", findings)
 	}
+	Load(env)
 	sameSnapshot(t, before, snapshot(t, root))
 }
 
@@ -105,8 +117,11 @@ func TestKnownLocationsOnly(t *testing.T) {
 	env.Lstat = func(p string) (fs.FileInfo, error) { rec(p); return lstat(p) }
 	env.ReadDir = func(p string) ([]fs.DirEntry, error) { rec(p); listed = append(listed, p); return readDir(p) }
 	env.Open = func(p string) (io.Closer, error) { rec(p); opened = append(opened, p); return open(p) }
+	reads := map[string]int{}
+	readFile := env.ReadFile
+	env.ReadFile = func(p string) ([]byte, error) { rec(p); reads[filepath.Clean(p)]++; return readFile(p) }
 
-	results, _ := Discover(env)
+	results, _, _ := Load(env)
 
 	allowed := map[string]bool{}
 	files := map[string]bool{}
@@ -149,6 +164,30 @@ func TestKnownLocationsOnly(t *testing.T) {
 	if len(opened) == 0 {
 		t.Error("recording Env saw no Open calls; the wrapper is not wired")
 	}
+
+	// Every found file is read exactly once per client that lists it (twice for the shared .mcp.json);
+	// missing or unreadable files are never read.
+	wantReads := map[string]int{}
+	for _, r := range results {
+		for _, f := range r.Files {
+			if f.Status == StatusFound {
+				wantReads[filepath.Clean(f.Path)]++
+			}
+		}
+	}
+	for p, n := range reads {
+		if n != wantReads[p] {
+			t.Errorf("ReadFile(%s) called %d times, want %d", p, n, wantReads[p])
+		}
+	}
+	for p, n := range wantReads {
+		if reads[p] != n {
+			t.Errorf("found file %s read %d times, want %d", p, reads[p], n)
+		}
+	}
+	if shared := filepath.Join(env.Cwd, ".mcp.json"); reads[shared] != 2 {
+		t.Errorf("shared .mcp.json read %d times, want 2", reads[shared])
+	}
 }
 
 // TestNoWriteAPI statically guards the production files. The text scan also matches comments and
@@ -157,16 +196,21 @@ func TestNoWriteAPI(t *testing.T) {
 	forbiddenImports := []string{"os", "os/exec", "runtime", "syscall", "io/ioutil"}
 	forbiddenNames := []string{"os.WriteFile", "os.Create", "os.Mkdir", "os.Remove", "os.Rename", "os.Chmod",
 		"os.Chown", "os.OpenFile", "os.Symlink", "os.Chtimes", "os.Truncate", "exec."}
-	paths, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
+	checked := map[string]int{}
+	var paths []string
+	for _, dir := range []string{".", filepath.Join("..", "config")} {
+		ps, err := filepath.Glob(filepath.Join(dir, "*.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		checked[dir] = 0
+		paths = append(paths, ps...)
 	}
-	checked := 0
 	for _, p := range paths {
 		if strings.HasSuffix(p, "_test.go") {
 			continue
 		}
-		checked++
+		checked[filepath.Dir(p)]++
 		f, err := parser.ParseFile(token.NewFileSet(), p, nil, parser.ImportsOnly)
 		if err != nil {
 			t.Fatal(err)
@@ -189,7 +233,9 @@ func TestNoWriteAPI(t *testing.T) {
 			}
 		}
 	}
-	if checked == 0 {
-		t.Fatal("no production files found")
+	for dir, n := range checked {
+		if n == 0 {
+			t.Errorf("no production files found in %s", dir)
+		}
 	}
 }
