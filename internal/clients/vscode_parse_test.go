@@ -245,3 +245,32 @@ func TestVSCodeRawPreserved(t *testing.T) {
 		t.Error("remote raw lost its comment")
 	}
 }
+
+func FuzzParseVSCode(f *testing.F) {
+	for _, dir := range []string{"testdata/vscode/parse", "testdata/vscode"} {
+		for _, b := range readFixtures(f, dir) {
+			f.Add(b)
+		}
+	}
+	files := []File{
+		jsonFile("/u/mcp.json", FormatJSONC, ScopeUser),
+		jsonFile("/h/.copilot/mcp-config.json", FormatJSON, ScopeUser),
+		jsonFile("/w/.mcp.json", FormatJSON, ScopeProject),
+	}
+	f.Fuzz(func(t *testing.T, input []byte) {
+		body := stripBOM(input)
+		for _, file := range files {
+			ss, fds := vscodeFile(Env{}, file, input)
+			for _, fd := range fds {
+				if err := fd.Validate(); err != nil || fd.Client != "vscode" {
+					t.Fatalf("finding %+v: %v", fd, err)
+				}
+			}
+			for _, s := range ss {
+				if s.Shadowed || s.raw == nil || !bytes.Contains(body, *s.raw) {
+					t.Fatalf("server %q: shadowed %t or raw not in input", s.Name, s.Shadowed)
+				}
+			}
+		}
+	})
+}
