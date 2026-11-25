@@ -28,7 +28,7 @@ func newValidateCmd(exit *int) *cobra.Command {
 }
 
 func renderValidate(out io.Writer, results []clients.Result, servers []clients.Server, findings []diag.Finding) error {
-	if err := renderFindings(out, findings); err != nil {
+	if err := writeFindings(out, findings); err != nil {
 		return err
 	}
 	files := map[string]bool{} // .mcp.json is listed by two clients but is one file

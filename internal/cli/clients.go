@@ -92,12 +92,18 @@ func renderClients(out io.Writer, results []clients.Result, findings []diag.Find
 }
 
 // renderFindings prints a blank line, then one line per finding; nothing when there are none.
+// renderFindings prints findings after a table, separated by a blank line.
 func renderFindings(out io.Writer, findings []diag.Finding) error {
 	if len(findings) > 0 {
 		if _, err := fmt.Fprintln(out); err != nil {
 			return err
 		}
 	}
+	return writeFindings(out, findings)
+}
+
+// writeFindings prints one line per finding.
+func writeFindings(out io.Writer, findings []diag.Finding) error {
 	for _, f := range findings {
 		sev := strings.ToUpper(string(f.Severity))
 		var err error

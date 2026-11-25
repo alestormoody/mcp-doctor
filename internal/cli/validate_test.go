@@ -45,6 +45,9 @@ func TestValidateErrors(t *testing.T) {
 			t.Errorf("no line starting %q:\n%s", prefix, out)
 		}
 	}
+	if strings.HasPrefix(out, "\n") {
+		t.Errorf("validate output starts with a blank line:\n%s", out)
+	}
 	if !strings.HasSuffix(out, "\n3 files checked, 1 server, 2 errors, 1 warning\n") {
 		t.Errorf("summary wrong:\n%s", out)
 	}
