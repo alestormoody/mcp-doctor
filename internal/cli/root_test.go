@@ -51,7 +51,7 @@ func TestRootHelp(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "Usage:") {
 		t.Errorf("code=%d out=%q", code, out)
 	}
-	for _, cmd := range []string{"clients", "servers", "version"} {
+	for _, cmd := range []string{"clients", "servers", "validate", "version"} {
 		if !strings.Contains(out, "\n  "+cmd+" ") {
 			t.Errorf("help does not list %s:\n%s", cmd, out)
 		}
