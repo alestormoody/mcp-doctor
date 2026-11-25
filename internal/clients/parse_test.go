@@ -517,6 +517,12 @@ func TestSamePath(t *testing.T) {
 		{"darwin", "/a/./b", "/a/b", true},
 		{"linux", "", "/a", false},
 		{"windows", "", `C:\`, false},
+		{"windows", `C:\repo\.\sub`, `C:\repo\sub`, true},
+		{"windows", `C:\repo\x\..\sub`, `c:/REPO/sub`, true},
+		{"windows", `C:\repo\sub\..`, `C:\repo\sub`, false},
+		{"linux", "/a/b/../c", "/a/c", true},
+		{"darwin", "/a/b/../c", "/a/b/c", false},
+		{"linux", `/a\b`, "/a/b", false}, // a backslash is a name character outside Windows
 	}
 	for _, c := range cases {
 		if got := samePath(c.goos, c.a, c.b); got != c.want {

@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
-	"path/filepath"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -375,16 +375,17 @@ func resolveTransport(stated string, hasCmd, hasURL, urlNeedsType bool, aliases 
 	return t, false, "", ""
 }
 
-// samePath compares a project path key from a config file with a real path. Pure string logic.
+// samePath compares a project path key from a config file with a real path, after cleaning . and ..
+// segments by the rules of goos (not of the host). Pure string logic.
 func samePath(goos, a, b string) bool {
 	if a == "" || b == "" {
 		return false
 	}
 	if goos == "windows" {
-		norm := func(s string) string { return strings.TrimRight(strings.ReplaceAll(s, "\\", "/"), "/") }
+		norm := func(s string) string { return strings.TrimRight(path.Clean(strings.ReplaceAll(s, "\\", "/")), "/") }
 		return strings.EqualFold(norm(a), norm(b))
 	}
-	return filepath.Clean(a) == filepath.Clean(b)
+	return path.Clean(a) == path.Clean(b)
 }
 
 var (
