@@ -555,3 +555,30 @@ func TestVarRefs(t *testing.T) {
 		t.Errorf("basename and slash: %+v", r)
 	}
 }
+
+func TestJSONNullRejected(t *testing.T) {
+	cases := map[string]string{
+		"command":       `{"command":null}`,
+		"args element":  `{"command":"run","args":[null]}`,
+		"args":          `{"command":"run","args":null}`,
+		"args number":   `{"command":"run","args":[1]}`,
+		"env value":     `{"command":"run","env":{"A":null}}`,
+		"headers value": `{"type":"http","url":"https://h","headers":{"H":null}}`,
+		"headers":       `{"type":"http","url":"https://h","headers":null}`,
+	}
+	for name, entry := range cases {
+		src := []byte(`{"mcpServers":{"s":` + entry + `,"ok":{"command":"y"}}}`)
+		ss, _, fds := claudeCodeFile(fakeEnv("linux", nil), jsonFile("/p", FormatJSON, ScopeProject), src)
+		if parseCodes(fds) != "MCP_PARSE_002" {
+			t.Errorf("%s: codes %s: %+v", name, parseCodes(fds), fds)
+		}
+		if len(ss) != 1 || ss[0].Name != "ok" {
+			t.Errorf("%s: kept %+v", name, ss)
+		}
+	}
+	// the shared decoder covers every JSON client
+	ss, fds := cursorFile(jsonFile("/c", FormatJSON, ScopeUser), []byte(`{"mcpServers":{"s":{"command":"run","env":{"A":null}}}}`))
+	if len(ss) != 0 || parseCodes(fds) != "MCP_PARSE_002" {
+		t.Errorf("cursor: %d servers, %+v", len(ss), fds)
+	}
+}

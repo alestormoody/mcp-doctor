@@ -256,18 +256,43 @@ func jsonEntries(client string, f File, scope Scope, label string, obj config.Me
 	return entries, fds
 }
 
-// decode decodes field into v; absent -> false, nil; wrong type -> 002 at the value position, saying what was expected.
+// decode decodes field into v; absent -> false, nil; wrong type or a null anywhere in the value (encoding/json
+// silently accepts null as a zero value) -> 002 at the value position, saying what was expected.
 func (e jsonEntry) decode(field, want string, v any) (bool, *diag.Finding) {
 	m, ok := e.Fields[field]
 	if !ok {
 		return false, nil
 	}
-	if p := m.Decode(v); p != nil {
-		fd := parseFinding("MCP_PARSE_002", e.Src.Client, e.Name, position(e.Src.Path, p.Line, p.Col),
+	bad := func(line, col int) (bool, *diag.Finding) {
+		fd := parseFinding("MCP_PARSE_002", e.Src.Client, e.Name, position(e.Src.Path, line, col),
 			fmt.Sprintf("Invalid structure: %q must be %s", field, want))
 		return false, &fd
 	}
+	if p := m.Decode(v); p != nil {
+		return bad(p.Line, p.Col)
+	}
+	var generic any
+	if m.Decode(&generic) == nil && hasNull(generic) {
+		return bad(m.Line, m.Col)
+	}
 	return true, nil
+}
+
+// hasNull reports whether a value decoded into any contains a JSON null at any depth.
+func hasNull(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case []any:
+		return slices.ContainsFunc(x, hasNull)
+	case map[string]any:
+		for _, y := range x {
+			if hasNull(y) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (e jsonEntry) str(field string) (string, *diag.Finding) {
