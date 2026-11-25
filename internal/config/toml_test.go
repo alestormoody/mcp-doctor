@@ -238,3 +238,16 @@ func FuzzParseTOML(f *testing.F) {
 		}
 	})
 }
+
+func TestTOMLBytesSeparatedSubtable(t *testing.T) {
+	src := []byte("[mcp_servers.a]\ncommand = \"x\"\n\n[mcp_servers.b]\ncommand = \"y\"\n\n[mcp_servers.a.custom]\nk = \"CANARY-c\"\n\n[other]\nz = 1\n")
+	doc := tomlParse(t, src)
+	got := doc.Bytes("mcp_servers", "a")
+	i, j := bytes.Index(src, []byte("[mcp_servers.a]")), bytes.Index(src, []byte("[other]"))
+	if !bytes.Equal(got, src[i:j]) {
+		t.Errorf("Bytes(a) = %q, want covering range %q", got, src[i:j])
+	}
+	if b := doc.Bytes("mcp_servers", "b"); string(b) != "[mcp_servers.b]\ncommand = \"y\"\n\n" {
+		t.Errorf("Bytes(b) = %q", b)
+	}
+}

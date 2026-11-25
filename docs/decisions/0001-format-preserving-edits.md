@@ -55,7 +55,9 @@ final newline, and the three TOML shapes plus a quoted server name), each also a
 - go-toml `unstable` gives `Table` expressions an empty range, so a table span runs from its header to
   the next header. Comments directly above the next header therefore fall inside the preceding table's
   span: trailing comment lines must be trimmed from a span before splicing.
-- A sub-table such as `[mcp_servers.<name>.env]` has its own span, separate from the server's header span.
+- A sub-table such as `[mcp_servers.<name>.env]` has its own header. The bytes kept for a server run from
+  its header to the end of its last sub-table, so a sub-table placed after another server's table stays
+  inside; that covering range then also holds the tables in between. Such entries are refused for edits.
 - Dotted-key entries interleaved with other keys are refused, since the span would include unrelated lines.
 - Only the three TOML shapes above are supported.
 

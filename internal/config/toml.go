@@ -131,16 +131,24 @@ func (d *TOMLDoc) Pos(path ...string) (line, col int) {
 }
 
 // Bytes is the original section of table path, nil when absent. Header shape: from its header to the next
-// header outside path (or EOF). Inline and dotted shapes: from the first to the last key-value under path.
-// Limits (docs/decisions/0001): interleaved dotted keys yield the covering range; comment lines just above
-// the next header belong to the preceding span.
+// header outside path after the last header under path (or EOF), so sub-tables placed after other tables
+// stay inside. Inline and dotted shapes: from the first to the last key-value under path.
+// Limits (docs/decisions/0001): separated sub-tables and interleaved dotted keys yield the covering range,
+// which then holds the unrelated tables in between; comment lines just above the next header belong to
+// the preceding span.
 func (d *TOMLDoc) Bytes(path ...string) []byte {
 	for i, k := range d.keys {
 		if !k.Header || !slices.Equal(k.Path, path) {
 			continue
 		}
+		last := i
+		for j := i + 1; j < len(d.keys); j++ {
+			if d.keys[j].Header && tomlUnder(d.keys[j].Path, path) {
+				last = j
+			}
+		}
 		end := len(d.body)
-		for _, n := range d.keys[i+1:] {
+		for _, n := range d.keys[last+1:] {
 			if n.Header && !tomlUnder(n.Path, path) {
 				end = n.Start
 				break
