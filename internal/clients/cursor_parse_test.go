@@ -141,3 +141,13 @@ func TestCursorParseFiles(t *testing.T) {
 		t.Errorf("got %q findings %+v", got, fds)
 	}
 }
+
+func FuzzParseCursor(f *testing.F) {
+	for _, b := range readFixtures(f, cursorDir) {
+		f.Add(b)
+	}
+	f.Fuzz(func(t *testing.T, input []byte) {
+		ss, fds := cursorFile(jsonFile("/p", FormatJSON, ScopeProject), input)
+		cdFuzzCheck(t, "cursor", input, ss, fds)
+	})
+}

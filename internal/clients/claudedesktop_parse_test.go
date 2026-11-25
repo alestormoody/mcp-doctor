@@ -149,3 +149,28 @@ func TestClaudeDesktopLoadMSIX(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+// cdFuzzCheck asserts the parser invariants shared by the Claude Desktop and Cursor fuzz targets.
+func cdFuzzCheck(t *testing.T, client string, input []byte, ss []Server, fds []diag.Finding) {
+	t.Helper()
+	for _, f := range fds {
+		if err := f.Validate(); err != nil || f.Client != client {
+			t.Fatalf("finding %+v: %v", f, err)
+		}
+	}
+	for _, s := range ss {
+		if s.Shadowed || s.Source.Client != client || s.raw == nil || !bytes.Contains(stripBOM(input), *s.raw) {
+			t.Fatalf("server %q: shadowed, wrong client or raw not in input", s.Name)
+		}
+	}
+}
+
+func FuzzParseClaudeDesktop(f *testing.F) {
+	for _, b := range readFixtures(f, cdDir) {
+		f.Add(b)
+	}
+	f.Fuzz(func(t *testing.T, input []byte) {
+		ss, fds := claudeDesktopServers(jsonFile("/p", FormatJSON, ScopeUser), input)
+		cdFuzzCheck(t, "claude-desktop", input, ss, fds)
+	})
+}
