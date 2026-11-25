@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "local-tool": {
+      "command": "npx",
+      "args": ["-y", "${X:-CANARY-def}"],
+      "env": {"API_TOKEN": "${TOKEN}"}
+    },
+    "remote": {
+      "type": "http",
+      "url": "https://api.example/mcp/CANARY-p",
+      "headers": {"Authorization": "Bearer CANARY-h"}
+    },
+    "events": {"type": "sse", "url": "https://sse.example/CANARY-s"},
+    "socket": {"type": "ws", "url": "wss://ws.example/CANARY-w"},
+    "streamed": {"type": "streamable-http", "url": "https://st.example/CANARY-t"},
+    "explicit": {"type": "stdio", "command": "uvx", "timeout": 5000, "alwaysLoad": true, "oauth": {"clientId": "CANARY-o"}, "headersHelper": "/bin/h"}
+  }
+}
