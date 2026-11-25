@@ -3,9 +3,12 @@
 package clients
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"path/filepath"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
 )
 
 // Scope is where a config file applies.
@@ -114,4 +117,112 @@ func localAppData(env Env) string {
 		return d
 	}
 	return filepath.Join(env.Home, "AppData", "Local")
+}
+
+// classify stats c.Path and, for a regular file, opens and closes it to prove read access. It never reads bytes.
+func classify(env Env, c Candidate) File {
+	unreadable := func(r string) File { return File{Candidate: c, Status: StatusUnreadable, Reason: r} }
+	info, err := env.Stat(c.Path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		if _, lerr := env.Lstat(c.Path); lerr == nil {
+			return unreadable("broken symlink")
+		}
+		return File{Candidate: c, Status: StatusMissing}
+	case err != nil:
+		return unreadable(reason(err))
+	case !info.Mode().IsRegular():
+		return unreadable("not a regular file")
+	}
+	f, err := env.Open(c.Path)
+	if err != nil {
+		return unreadable(reason(err))
+	}
+	_ = f.Close()
+	return File{Candidate: c, Status: StatusFound}
+}
+
+// reason is the short cause of err, without the path the user already sees.
+func reason(err error) string {
+	var pe *fs.PathError
+	if errors.As(err, &pe) {
+		return pe.Err.Error()
+	}
+	return err.Error()
+}
+
+func discFinding(code, client, source, msg, resolution string) diag.Finding {
+	return diag.Finding{Code: code, Category: "discovery", Severity: diag.SeverityWarning,
+		Client: client, Source: source, Message: msg, Resolution: resolution}
+}
+
+const permResolution = "Check the file's permissions and ownership; mcp-doctor needs read access only."
+
+// discoverOne classifies every candidate of c. Missing files are data, unreadable ones become MCP_DISC_001.
+func discoverOne(env Env, c Client) (Result, []diag.Finding) {
+	var findings []diag.Finding
+	inner := env.ReadDir
+	// Adapters ignore ReadDir errors: this wrapper reports them, and never lists a relative dir
+	// (an empty Home must not make discovery list the process's current directory).
+	env.ReadDir = func(dir string) ([]fs.DirEntry, error) {
+		if !filepath.IsAbs(dir) {
+			return nil, fs.ErrNotExist
+		}
+		ents, err := inner(dir)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			findings = append(findings, discFinding("MCP_DISC_001", c.ID, dir,
+				"Config directory cannot be listed: "+reason(err), permResolution))
+		}
+		return ents, err
+	}
+
+	res := Result{Client: c}
+	seen := map[string]bool{}
+	for _, cand := range c.candidates(env) {
+		key := filepath.Clean(cand.Path)
+		if !filepath.IsAbs(cand.Path) || seen[key] {
+			continue
+		}
+		seen[key] = true
+		f := classify(env, cand)
+		res.Files = append(res.Files, f)
+		if f.Status == StatusUnreadable {
+			findings = append(findings, discFinding("MCP_DISC_001", c.ID, f.Path,
+				"Config file cannot be read: "+f.Reason, permResolution))
+		}
+		if f.Status != StatusMissing && !f.Shared {
+			res.Detected = true
+		}
+	}
+	for _, h := range c.homes(env) {
+		if !filepath.IsAbs(h) {
+			continue
+		}
+		if info, err := env.Stat(h); err == nil && info.IsDir() {
+			res.Detected = true
+		}
+	}
+	return res, findings
+}
+
+// Discover runs every client in table order. It never fails: problems are findings.
+func Discover(env Env) ([]Result, []diag.Finding) {
+	var findings []diag.Finding
+	if env.Home == "" {
+		findings = append(findings, discFinding("MCP_DISC_002", "", "",
+			"Home directory cannot be resolved; user config locations were skipped",
+			"Set HOME (USERPROFILE on Windows) and run again."))
+	}
+	if env.Cwd == "" {
+		findings = append(findings, discFinding("MCP_DISC_002", "", "",
+			"Current directory cannot be resolved; project config locations were skipped",
+			"Run mcp-doctor from an existing directory."))
+	}
+	results := make([]Result, 0, len(all))
+	for _, c := range all {
+		r, fds := discoverOne(env, c)
+		results = append(results, r)
+		findings = append(findings, fds...)
+	}
+	return results, findings
 }
