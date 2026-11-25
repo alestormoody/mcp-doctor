@@ -362,3 +362,28 @@ func TestClaudeCodeRank(t *testing.T) {
 		t.Error("unknown scope ranked")
 	}
 }
+
+func FuzzParseClaudeCode(f *testing.F) {
+	for _, dir := range []string{ccDir, "testdata/claudecode"} {
+		for _, b := range readFixtures(f, dir) {
+			f.Add(b)
+		}
+	}
+	f.Add(ccUser(f, "/w/proj"))
+	env := fakeEnv("linux", nil)
+	f.Fuzz(func(t *testing.T, src []byte) {
+		for _, scope := range []Scope{ScopeUser, ScopeProject} {
+			ss, _, fds := claudeCodeFile(env, jsonFile("/p", FormatJSON, scope), src)
+			for _, fd := range fds {
+				if err := fd.Validate(); err != nil || fd.Client != "claude-code" {
+					t.Fatalf("finding %+v: %v", fd, err)
+				}
+			}
+			for _, s := range ss {
+				if s.Shadowed || s.raw == nil || !bytes.Contains(stripBOM(src), *s.raw) {
+					t.Fatalf("server %q: shadowed=%v raw not in input", s.Name, s.Shadowed)
+				}
+			}
+		}
+	})
+}
