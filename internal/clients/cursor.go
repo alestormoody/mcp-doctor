@@ -1,7 +1,15 @@
 // Cursor adapter: candidate config locations.
+// Source: https://cursor.com/docs/context/mcp
 
 package clients
 
-func cursorCandidates(Env) []Candidate { return nil }
+import "path/filepath"
 
-func cursorHomes(Env) []string { return nil }
+func cursorCandidates(env Env) []Candidate {
+	return []Candidate{
+		{Scope: ScopeUser, Path: filepath.Join(env.Home, ".cursor", "mcp.json"), Format: FormatJSON},
+		{Scope: ScopeProject, Path: filepath.Join(env.Cwd, ".cursor", "mcp.json"), Format: FormatJSON},
+	}
+}
+
+func cursorHomes(env Env) []string { return []string{filepath.Join(env.Home, ".cursor")} }
