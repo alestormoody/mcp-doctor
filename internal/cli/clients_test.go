@@ -169,4 +169,32 @@ func TestOSEnv(t *testing.T) {
 	if _, err := env.Open(filepath.Join(t.TempDir(), "nope")); err == nil {
 		t.Error("Open of a missing file succeeded")
 	}
+	if env.ReadFile == nil {
+		t.Fatal("nil ReadFile in osEnv")
+	}
+	dir := t.TempDir()
+	small := filepath.Join(dir, "small")
+	if err := os.WriteFile(small, []byte("abc"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := env.ReadFile(small); err != nil || string(b) != "abc" {
+		t.Errorf("ReadFile(small) = %q, %v", b, err)
+	}
+	big := filepath.Join(dir, "big")
+	f, err := os.Create(big) //nolint:gosec // G304: test temp path
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(clients.MaxFileSize + 10); err != nil { // sparse
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := env.ReadFile(big); err != nil || len(b) != clients.MaxFileSize+1 {
+		t.Errorf("ReadFile(big) len=%d, %v", len(b), err)
+	}
+	if _, err := env.ReadFile(filepath.Join(dir, "nope")); err == nil {
+		t.Error("ReadFile of a missing file succeeded")
+	}
 }

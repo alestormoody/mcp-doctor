@@ -39,7 +39,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 			return err
 		},
 	})
-	root.AddCommand(newClientsCmd(&exit))
+	root.AddCommand(newClientsCmd(&exit), newServersCmd(&exit))
 
 	if err := root.Execute(); err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error: %v\nRun 'mcp-doctor --help' for usage.\n", err)
