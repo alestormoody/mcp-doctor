@@ -53,6 +53,16 @@ type Finding struct {
 var registry = []CodeInfo{
 	{Code: "MCP_DISC_001", Category: "discovery", Title: "Config file cannot be read", DefaultSeverity: SeverityWarning},
 	{Code: "MCP_DISC_002", Category: "discovery", Title: "Config location cannot be resolved", DefaultSeverity: SeverityWarning},
+	{Code: "MCP_PARSE_001", Category: "parse", Title: "Config file has a syntax error", DefaultSeverity: SeverityError},
+	{Code: "MCP_PARSE_002", Category: "parse", Title: "Config file has an invalid structure", DefaultSeverity: SeverityError},
+	{Code: "MCP_PARSE_003", Category: "parse", Title: "Server has neither a command nor a URL", DefaultSeverity: SeverityError},
+	{Code: "MCP_PARSE_004", Category: "parse", Title: "Duplicate key", DefaultSeverity: SeverityWarning},
+	{Code: "MCP_PARSE_005", Category: "parse", Title: "Unknown or unsupported field in a server entry", DefaultSeverity: SeverityInfo},
+	{Code: "MCP_PARSE_006", Category: "parse", Title: "Comments or trailing commas in a plain JSON file", DefaultSeverity: SeverityWarning},
+	{Code: "MCP_PARSE_007", Category: "parse", Title: "Config file too large to parse", DefaultSeverity: SeverityWarning},
+	{Code: "MCP_PARSE_008", Category: "parse", Title: "Transport type conflicts with the fields", DefaultSeverity: SeverityError},
+	{Code: "MCP_PARSE_009", Category: "parse", Title: "Undefined input reference", DefaultSeverity: SeverityWarning},
+	{Code: "MCP_PARSE_010", Category: "parse", Title: "File starts with a byte order mark", DefaultSeverity: SeverityInfo},
 }
 
 var codePattern = regexp.MustCompile(`^MCP_[A-Z]+_[0-9]{3}$`)
