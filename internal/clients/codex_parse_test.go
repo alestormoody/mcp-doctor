@@ -69,7 +69,7 @@ func TestCodexParseRemote(t *testing.T) {
 	s := ss[0]
 	if s.Transport != "http" || !s.TransportInferred || !s.Disabled ||
 		s.URL.Reveal() != "https://h.example/mcp/CANARY-p" || secretMap(s.Headers)["Authorization"] != "Bearer CANARY-h" ||
-		len(s.Headers) != 1 || len(s.Unknown) != 0 {
+		secretMap(s.Headers)["X-Key"] != "${MY_KEY}" || len(s.Headers) != 2 || len(s.Unknown) != 0 {
 		t.Errorf("%+v", s)
 	}
 	want := []VarRef{
@@ -368,4 +368,15 @@ func FuzzParseCodex(f *testing.F) {
 		}
 		check(parseCodex(env, []Loaded{{File: user, Src: src}, {File: proj, Src: src}}))
 	})
+}
+
+func TestCodexEnvHeaderKeepsStaticValue(t *testing.T) {
+	var s Server
+	entry := map[string]any{"url": "https://h", "http_headers": map[string]any{"X-Key": "CANARY-v"}, "env_http_headers": map[string]any{"X-Key": "K"}}
+	if !codexEntry(&s, entry, func(string, string) { t.Error("bad") }) {
+		t.Fatal("rejected")
+	}
+	if got := secretMap(s.Headers); len(got) != 1 || got["X-Key"] != "CANARY-v" {
+		t.Errorf("headers = %v", got)
+	}
 }

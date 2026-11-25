@@ -84,6 +84,8 @@ Fields: `command`, `args`, `env`, `env_vars`, `cwd`, `url`, `auth`, `oauth`,
 
 No interpolation is documented. Environment variables named by `env_vars`,
 `bearer_token_env_var` and the values of `env_http_headers` are recorded as references.
+Each `env_http_headers` name is also listed among the server's headers, with the reference
+`${NAME}` as its value (never expanded); a header also set in `http_headers` keeps that value.
 
 ### Precedence
 

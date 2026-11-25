@@ -288,6 +288,12 @@ func codexEntry(s *Server, entry map[string]any, bad func(field, want string)) b
 	}
 	for _, h := range slices.Sorted(maps.Keys(envHeaders)) {
 		s.Refs = append(s.Refs, VarRef{Field: "env_http_headers." + h, Kind: "env", Name: envHeaders[h]})
+		if _, set := s.Headers[h]; !set { // the header key is visible; its value is the ${NAME} reference, never expanded
+			if s.Headers == nil {
+				s.Headers = map[string]diag.Secret{}
+			}
+			s.Headers[h] = diag.NewSecret("${" + envHeaders[h] + "}")
+		}
 	}
 	if v, ok := entry["enabled"]; ok {
 		b, ok := v.(bool)
