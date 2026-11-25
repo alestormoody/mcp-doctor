@@ -14,3 +14,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI on Linux, macOS and Windows.
 - GoReleaser snapshot build.
 - Project documentation and GitHub templates.
+- `mcp-doctor clients`: read-only discovery of MCP config files for Claude Code, Codex, Claude Desktop, Cursor and VS Code on macOS, Linux and Windows.
+- Finding codes `MCP_DISC_001` (config file cannot be read) and `MCP_DISC_002` (config location cannot be resolved), both WARNING.
