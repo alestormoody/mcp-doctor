@@ -1,7 +1,9 @@
 package clients
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alestormoody/mcp-doctor/internal/config"
 	"github.com/alestormoody/mcp-doctor/internal/diag"
 )
 
@@ -267,5 +270,288 @@ func TestParseHelpers(t *testing.T) {
 	}
 	if secretMap(nil) != nil || secretMap(map[string]diag.Secret{"k": diag.NewSecret("v")})["k"] != "v" {
 		t.Error("secretMap")
+	}
+}
+
+// parseOpen parses src as a file at /p and fails the test on a syntax error.
+func parseOpen(t *testing.T, format Format, src string) (File, *config.JSONDoc) {
+	t.Helper()
+	f := jsonFile("/p", format, ScopeUser)
+	doc, fds := openJSON("test", f, []byte(src))
+	if doc == nil {
+		t.Fatalf("openJSON: nil doc, findings %+v", fds)
+	}
+	return f, doc
+}
+
+// parseTop returns the top-level member name of doc.
+func parseTop(t *testing.T, f File, doc *config.JSONDoc, name string) config.Member {
+	t.Helper()
+	fields, ok, _ := objectFields("test", f, doc.Root())
+	if !ok {
+		t.Fatal("root is not an object")
+	}
+	return fields[name]
+}
+
+func parseCodes(fds []diag.Finding) string {
+	var cs []string
+	for _, f := range fds {
+		cs = append(cs, f.Code)
+	}
+	return strings.Join(cs, ",")
+}
+
+func parseCheckFindings(t *testing.T, fds []diag.Finding) {
+	t.Helper()
+	for _, f := range fds {
+		if err := f.Validate(); err != nil {
+			t.Error(err)
+		}
+		if strings.Contains(f.Message, "CANARY") || strings.Contains(f.Source, "CANARY") {
+			t.Errorf("finding leaks input: %+v", f)
+		}
+		if f.Resolution == "" {
+			t.Errorf("no resolution: %+v", f)
+		}
+	}
+}
+
+func TestOpenJSON(t *testing.T) {
+	f := jsonFile("/p", FormatJSON, ScopeUser)
+	doc, fds := openJSON("test", f, []byte("{\n  // c\n  \"a\": \"CANARY-1\"\n}\n"))
+	if doc == nil || parseCodes(fds) != "MCP_PARSE_006" || fds[0].Source != "/p:2:3" {
+		t.Errorf("json with comment: doc=%v %+v", doc != nil, fds)
+	}
+	parseCheckFindings(t, fds)
+
+	fc := jsonFile("/p", FormatJSONC, ScopeUser)
+	if doc, fds := openJSON("test", fc, []byte("{\n  // c\n  \"a\": 1,\n}\n")); doc == nil || len(fds) != 0 {
+		t.Errorf("jsonc: doc=%v %+v", doc != nil, fds)
+	}
+
+	doc, fds = openJSON("test", f, []byte("{\n  \"a\": \"CANARY-2\",\n  \"b\": tru"))
+	if doc != nil || parseCodes(fds) != "MCP_PARSE_001" || !strings.HasPrefix(fds[0].Source, "/p:3:") ||
+		!strings.HasPrefix(fds[0].Message, "Syntax error: ") {
+		t.Errorf("truncated: doc=%v %+v", doc != nil, fds)
+	}
+	parseCheckFindings(t, fds)
+
+	doc, fds = openJSON("test", f, append([]byte("\xEF\xBB\xBF"), `{"a": "CANARY-3"}`...))
+	if doc == nil || parseCodes(fds) != "MCP_PARSE_010" || fds[0].Source != "/p:1:1" {
+		t.Errorf("BOM: doc=%v %+v", doc != nil, fds)
+	}
+	parseCheckFindings(t, fds)
+
+	fd := problemFinding("test", f, config.Problem{Kind: config.KindType, Line: 2, Col: 4, Message: config.MsgType})
+	if fd.Code != "MCP_PARSE_002" || fd.Source != "/p:2:4" || fd.Message != "Invalid structure: "+config.MsgType {
+		t.Errorf("type problem: %+v", fd)
+	}
+}
+
+func TestJSONEntries(t *testing.T) {
+	src := "{\n  \"servers\": {\n    \"a\": {\"command\": \"x\"},\n    \"b\": 5,\n    \"c\": {\"command\": \"y\", \"command\": \"z\"},\n    \"a\": {\"command\": \"w\"}\n  }\n}\n"
+	f, doc := parseOpen(t, FormatJSONC, src)
+	es, fds := jsonEntries("test", f, ScopeLocal, "lbl", parseTop(t, f, doc, "servers"))
+	var names []string
+	for _, e := range es {
+		names = append(names, e.Name+"@"+e.Src.Position())
+		if e.Src.Scope != ScopeLocal || e.Src.Label != "lbl" || e.Src.Client != "test" || e.Src.Format != FormatJSONC {
+			t.Errorf("Src = %+v", e.Src)
+		}
+	}
+	if got := strings.Join(names, " "); got != "c@/p:5:5 a@/p:6:5" {
+		t.Errorf("entries = %s", got)
+	}
+	if parseCodes(fds) != "MCP_PARSE_004,MCP_PARSE_002,MCP_PARSE_004" {
+		t.Errorf("findings = %+v", fds)
+	}
+	for _, fd := range fds {
+		if fd.Code == "MCP_PARSE_002" && (fd.Source != "/p:4:5" || fd.Server != "b") {
+			t.Errorf("002 = %+v", fd)
+		}
+	}
+	parseCheckFindings(t, fds)
+	if s, _ := es[0].str("command"); s != "z" {
+		t.Errorf("duplicate field: last wins, got %q", s)
+	}
+	if s, _ := es[1].str("command"); s != "w" {
+		t.Errorf("duplicate server: last wins, got %q", s)
+	}
+
+	f, doc = parseOpen(t, FormatJSON, "{\n  \"mcpServers\": [\"CANARY\"]\n}")
+	es, fds = jsonEntries("test", f, ScopeUser, "", parseTop(t, f, doc, "mcpServers"))
+	if len(es) != 0 || parseCodes(fds) != "MCP_PARSE_002" || fds[0].Source != "/p:2:3" ||
+		!strings.Contains(fds[0].Message, `"mcpServers" is not an object`) {
+		t.Errorf("non-object servers: %v %+v", es, fds)
+	}
+	if es, fds := jsonEntries("test", f, ScopeUser, "", config.Member{}); es != nil || fds != nil {
+		t.Errorf("absent: %v %v", es, fds)
+	}
+}
+
+func TestRawPreservesUnknown(t *testing.T) {
+	entry := "{\n      // keep me\n      \"comand\": \"CANARY-x\",\n      \"nested\": {\"deep\": [1, 2, {\"k\": \"CANARY-y\"}]},\n    }"
+	src := "{\n  \"mcpServers\": {\n    \"x\": " + entry + "\n  }\n}\n"
+	f, doc := parseOpen(t, FormatJSONC, src)
+	es, _ := jsonEntries("test", f, ScopeUser, "", parseTop(t, f, doc, "mcpServers"))
+	if len(es) != 1 {
+		t.Fatalf("entries = %v", es)
+	}
+	i := strings.Index(src, entry)
+	want := []byte(src[i : i+len(entry)])
+	if !bytes.Equal(es[0].raw, want) || !bytes.Contains(es[0].raw, []byte(`"comand": "CANARY-x"`)) {
+		t.Errorf("raw = %q", es[0].raw)
+	}
+	if got := es[0].unknown("command"); strings.Join(got, ",") != "comand,nested" {
+		t.Errorf("unknown = %v", got)
+	}
+	s := Server{Name: "x", raw: &es[0].raw}
+	for _, verb := range []string{"%s", "%v", "%+v", "%#v"} {
+		if out := fmt.Sprintf(verb, s); strings.Contains(out, "CANARY") {
+			t.Errorf("%s prints raw: %s", verb, out)
+		}
+	}
+	if !bytes.Equal(*s.raw, want) {
+		t.Error("raw changed after printing")
+	}
+	fd := unknownFinding("test", Server{Name: "x", Source: es[0].Src}, es[0].unknown("command"), "not supported in this file")
+	if fd.Code != "MCP_PARSE_005" || fd.Message != "Unknown field(s): comand, nested (not supported in this file)" ||
+		fd.Source != "/p:3:5" || fd.Server != "x" || fd.Validate() != nil {
+		t.Errorf("unknownFinding = %+v", fd)
+	}
+	if fd := unknownFinding("test", Server{Name: "x"}, []string{"a"}, ""); fd.Message != "Unknown field(s): a" {
+		t.Errorf("no note: %q", fd.Message)
+	}
+}
+
+func TestFieldTypes(t *testing.T) {
+	src := "{\n  \"mcpServers\": {\n    \"a\": {\"command\": \"x\"},\n    \"b\": {\"command\": 42, \"args\": \"CANARY-s\", \"env\": {\"K\": 1}, \"ok\": [\"p\"], \"m\": {\"K\": \"v\"}}\n  }\n}\n"
+	f, doc := parseOpen(t, FormatJSON, src)
+	es, _ := jsonEntries("test", f, ScopeUser, "", parseTop(t, f, doc, "mcpServers"))
+	b := es[1]
+	_, fd := b.str("command")
+	if fd == nil || fd.Code != "MCP_PARSE_002" || fd.Source != "/p:4:22" || fd.Server != "b" {
+		t.Errorf("str on number: %+v", fd)
+	}
+	if _, fd := b.strs("args"); fd == nil || fd.Source != "/p:4:34" || strings.Contains(fd.Message, "CANARY") {
+		t.Errorf("strs on string: %+v", fd)
+	}
+	if _, fd := b.strMap("env"); fd == nil || fd.Code != "MCP_PARSE_002" || !strings.HasPrefix(fd.Source, "/p:4:") {
+		t.Errorf("strMap non-string: %+v", fd)
+	}
+	if v, fd := b.strs("ok"); fd != nil || strings.Join(v, ",") != "p" {
+		t.Errorf("strs ok: %v %+v", v, fd)
+	}
+	if v, fd := b.strMap("m"); fd != nil || v["K"] != "v" {
+		t.Errorf("strMap ok: %v %+v", v, fd)
+	}
+	a := es[0]
+	if s, fd := a.str("url"); s != "" || fd != nil {
+		t.Errorf("absent str: %q %v", s, fd)
+	}
+	if v, fd := a.strs("args"); v != nil || fd != nil {
+		t.Errorf("absent strs: %v %v", v, fd)
+	}
+	if v, fd := a.strMap("env"); v != nil || fd != nil {
+		t.Errorf("absent strMap: %v %v", v, fd)
+	}
+	parseCheckFindings(t, []diag.Finding{*fd})
+}
+
+func TestResolveTransport(t *testing.T) {
+	aliases := map[string]string{"streamable-http": "http", "local": "stdio"}
+	allowed := []string{"stdio", "http", "sse", "ws", "sdk"}
+	cases := []struct {
+		stated              string
+		cmd, url, needsType bool
+		t                   string
+		inferred            bool
+		code                string
+	}{
+		{"", true, false, false, "stdio", true, ""},
+		{"", true, true, true, "stdio", true, ""},
+		{"", false, true, false, "http", true, ""},
+		{"", false, true, true, "", false, "MCP_PARSE_008"},
+		{"", false, false, false, "", false, "MCP_PARSE_003"},
+		{"stdio", true, false, false, "stdio", false, ""},
+		{"local", true, false, false, "stdio", false, ""},
+		{"stdio", false, true, false, "stdio", false, "MCP_PARSE_008"},
+		{"stdio", false, false, false, "stdio", false, "MCP_PARSE_003"},
+		{"streamable-http", false, true, true, "http", false, ""},
+		{"http", false, false, false, "http", false, "MCP_PARSE_008"},
+		{"sse", false, true, false, "sse", false, ""},
+		{"ws", true, false, false, "ws", false, "MCP_PARSE_008"},
+		{"sdk", false, false, false, "sdk", false, ""},
+		{"CANARY-type", true, true, false, "", false, "MCP_PARSE_008"},
+	}
+	for _, c := range cases {
+		tr, inf, code, msg := resolveTransport(c.stated, c.cmd, c.url, c.needsType, aliases, allowed...)
+		if tr != c.t || inf != c.inferred || code != c.code || (code == "") != (msg == "") {
+			t.Errorf("%+v: got %q %v %q %q", c, tr, inf, code, msg)
+		}
+		if strings.Contains(msg, "CANARY") {
+			t.Errorf("message echoes the type: %q", msg)
+		}
+	}
+	if _, _, _, msg := resolveTransport("x", false, false, false, nil, "stdio", "http"); msg != "transport type is not one of: stdio, http" {
+		t.Errorf("unknown type msg = %q", msg)
+	}
+	if _, _, _, msg := resolveTransport("sse", false, false, false, nil, "sse"); msg != "sse server has no url" {
+		t.Errorf("no url msg = %q", msg)
+	}
+	if _, _, _, msg := resolveTransport("stdio", false, true, false, nil, "stdio"); msg != "stdio server has a url but no command" {
+		t.Errorf("stdio url msg = %q", msg)
+	}
+}
+
+func TestSamePath(t *testing.T) {
+	cases := []struct {
+		goos, a, b string
+		want       bool
+	}{
+		{"windows", `C:\Users\A\proj`, "c:/users/a/proj/", true},
+		{"windows", `C:\Users\A\proj`, `C:\Users\A\work`, false},
+		{"linux", "/a/b/", "/a/b", true},
+		{"linux", "/a/B", "/a/b", false},
+		{"darwin", "/a/./b", "/a/b", true},
+		{"linux", "", "/a", false},
+		{"windows", "", `C:\`, false},
+	}
+	for _, c := range cases {
+		if got := samePath(c.goos, c.a, c.b); got != c.want {
+			t.Errorf("samePath(%s, %q, %q) = %v", c.goos, c.a, c.b, got)
+		}
+	}
+}
+
+func TestVarRefs(t *testing.T) {
+	got := dollarRefs("args[0]", "a ${TOKEN} b ${X:-CANARY-default} $BARE")
+	want := []VarRef{{"args[0]", "env", "TOKEN", false}, {"args[0]", "env", "X", true}}
+	if !slices.Equal(got, want) {
+		t.Errorf("dollarRefs = %+v", got)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", got), "CANARY") {
+		t.Error("default value stored")
+	}
+	got = colonRefs("env.K", "${env:A} ${input:key} ${workspaceFolder} ${userHome} ${pathSeparator} ${config:x}")
+	var kinds, names []string
+	for _, r := range got {
+		kinds, names = append(kinds, r.Kind), append(names, r.Name)
+		if r.Field != "env.K" {
+			t.Errorf("field = %q", r.Field)
+		}
+	}
+	if strings.Join(kinds, ",") != "env,input,workspace,userHome,other,other" ||
+		strings.Join(names, ",") != "A,key,workspaceFolder,userHome,pathSeparator,config:x" {
+		t.Errorf("colonRefs kinds=%v names=%v", kinds, names)
+	}
+	for _, s := range []string{"${", "${}", "$", "plain"} {
+		if r := append(dollarRefs("f", s), colonRefs("f", s)...); len(r) != 0 {
+			t.Errorf("%q: %+v", s, r)
+		}
+	}
+	if r := colonRefs("f", "${workspaceFolderBasename}${/}"); len(r) != 2 || r[0].Kind != "workspace" || r[1].Kind != "other" {
+		t.Errorf("basename and slash: %+v", r)
 	}
 }
