@@ -1,0 +1,5 @@
+[mcp_servers."my.server"]
+command = "x"
+
+[mcp_servers.other]
+command = "z"

@@ -1,0 +1,11 @@
+// user config
+{
+  "mcpServers": {
+    /* first server */
+    "a": {
+      "command": "x", // the binary
+      "args": ["--verbose",],
+    },
+    "b": { "url": "https://example.test/mcp", },
+  },
+}
