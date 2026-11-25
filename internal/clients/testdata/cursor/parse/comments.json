@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    /* local tools */
+    "local": {"command": "node", "args": ["srv.js"]},
+  },
+}

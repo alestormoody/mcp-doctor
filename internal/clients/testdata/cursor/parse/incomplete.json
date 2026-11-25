@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "nocmd": {"type": "stdio", "url": "https://h.example/CANARY-u"},
+    "typo": {"command": "node", "comand": "CANARY-t"},
+    "badauth": {"url": "https://h.example/mcp", "auth": "CANARY-a"}
+  }
+}
