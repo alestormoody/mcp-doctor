@@ -25,6 +25,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	exit := diag.ExitOK
 	root.CompletionOptions.DisableDefaultCmd = true
 	root.SetOut(stdout)
 	root.SetErr(stderr)
@@ -38,10 +39,11 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 			return err
 		},
 	})
+	root.AddCommand(newClientsCmd(&exit))
 
 	if err := root.Execute(); err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error: %v\nRun 'mcp-doctor --help' for usage.\n", err)
 		return diag.ExitError
 	}
-	return diag.ExitOK
+	return exit
 }
