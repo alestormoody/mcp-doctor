@@ -1,0 +1,3 @@
+[mcp_servers.a]
+command = "x"
+args = [CANARY-bare]

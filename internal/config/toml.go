@@ -2,7 +2,10 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"slices"
+
+	"github.com/pelletier/go-toml/v2"
 
 	// shortcut: unstable has no semver promise; it is pinned at v2.4.3 and used from this file only.
 	"github.com/pelletier/go-toml/v2/unstable"
@@ -71,4 +74,94 @@ func keyParts(n *unstable.Node, prefix []string) (path []string, last int) {
 		last = int(k.Raw.Offset)
 	}
 	return path, last
+}
+
+// TOMLDoc is a decoded TOML document with key positions and original section bytes.
+type TOMLDoc struct {
+	BOM    bool
+	Values map[string]any // toml.Unmarshal result: string, int64, float64, bool, []any, map[string]any, time values
+	body   []byte         // BOM-stripped input, without the newline prepare may append
+	keys   []tomlKey
+}
+
+// ParseTOML decodes src. It never returns an error: doc is nil iff a KindSyntax problem is returned.
+// Problem messages are fixed texts; positions are on the BOM-stripped buffer.
+func ParseTOML(src []byte) (*TOMLDoc, []Problem) {
+	body, hasBOM, addedNL := prepare(src)
+	var probs []Problem
+	if hasBOM {
+		probs = append(probs, Problem{Kind: KindBOM, Line: 1, Col: 1, Message: MsgBOM})
+	}
+	values := map[string]any{}
+	if err := toml.Unmarshal(body, &values); err != nil {
+		p := Problem{Kind: KindSyntax, Message: MsgSyntax}
+		var de *toml.DecodeError
+		if errors.As(err, &de) {
+			p.Line, p.Col = de.Position()
+			p.Message = syntaxMessage(de.Error()) // never de.String(): it prints source lines
+		}
+		return nil, append(probs, p)
+	}
+	keys, err := tomlKeys(body)
+	if err != nil {
+		keys = nil // unreachable after a successful Unmarshal; keep the values without positions
+	}
+	if addedNL {
+		body = body[:len(body)-1]
+	}
+	return &TOMLDoc{BOM: hasBOM, Values: values, body: body, keys: keys}, probs
+}
+
+// Pos is the 1-based line:col of the first key whose path equals path, or of the first key under path
+// (dotted shape: the start of its `a.b.c = v` expression); 0,0 when absent.
+func (d *TOMLDoc) Pos(path ...string) (line, col int) {
+	for _, k := range d.keys {
+		if slices.Equal(k.Path, path) {
+			return LineCol(d.body, k.Offset)
+		}
+	}
+	for _, k := range d.keys {
+		if tomlUnder(k.Path, path) {
+			return LineCol(d.body, k.Start)
+		}
+	}
+	return 0, 0
+}
+
+// Bytes is the original section of table path, nil when absent. Header shape: from its header to the next
+// header outside path (or EOF). Inline and dotted shapes: from the first to the last key-value under path.
+// Limits (docs/decisions/0001): interleaved dotted keys yield the covering range; comment lines just above
+// the next header belong to the preceding span.
+func (d *TOMLDoc) Bytes(path ...string) []byte {
+	for i, k := range d.keys {
+		if !k.Header || !slices.Equal(k.Path, path) {
+			continue
+		}
+		end := len(d.body)
+		for _, n := range d.keys[i+1:] {
+			if n.Header && !tomlUnder(n.Path, path) {
+				end = n.Start
+				break
+			}
+		}
+		return d.body[k.Start:min(end, len(d.body))]
+	}
+	start, end := -1, -1
+	for _, k := range d.keys {
+		if !k.Header && tomlUnder(k.Path, path) {
+			if start < 0 {
+				start = k.Start
+			}
+			end = max(end, k.End)
+		}
+	}
+	if start < 0 {
+		return nil
+	}
+	return d.body[start:min(end, len(d.body))]
+}
+
+// tomlUnder reports whether p equals prefix or lies below it.
+func tomlUnder(p, prefix []string) bool {
+	return len(p) >= len(prefix) && slices.Equal(p[:len(prefix)], prefix)
 }
