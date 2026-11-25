@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
 )
 
 // --- shared test helpers (used by every *_test.go in this package) ---
@@ -95,6 +98,9 @@ func fakeEnv(goos string, vars map[string]string, paths ...string) Env {
 			}
 			return nopCloser{}, nil
 		},
+		ReadFile: func(p string) ([]byte, error) {
+			return nil, &fs.PathError{Op: "open", Path: p, Err: fs.ErrNotExist}
+		},
 	}
 }
 
@@ -124,6 +130,7 @@ func fixtureEnv(t *testing.T) (env Env, root string) {
 			}
 			return f, nil
 		},
+		ReadFile: os.ReadFile,
 	}, root
 }
 
@@ -174,6 +181,56 @@ func lookupClient(t *testing.T, id string) Client {
 	}
 	t.Fatalf("client %q not in table", id)
 	return Client{}
+}
+
+// jsonFile is a found File at path, for calling parse functions directly.
+func jsonFile(path string, f Format, scope Scope) File {
+	return File{Candidate: Candidate{Scope: scope, Path: path, Format: f}, Status: StatusFound}
+}
+
+// stripBOM drops a leading UTF-8 byte order mark (for fuzz "raw found in input" checks).
+func stripBOM(b []byte) []byte { return bytes.TrimPrefix(b, []byte("\xEF\xBB\xBF")) }
+
+// readFixtures returns every regular file in dir by base name (fuzz seeds).
+func readFixtures(t testing.TB, dir string) map[string][]byte {
+	t.Helper()
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := map[string][]byte{}
+	for _, e := range ents {
+		if !e.Type().IsRegular() {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name())) // #nosec G304 -- test fixture path
+		if err != nil {
+			t.Fatal(err)
+		}
+		m[e.Name()] = b
+	}
+	return m
+}
+
+// secrets reveals ss (tests only).
+func secrets(ss []diag.Secret) []string {
+	out := make([]string, 0, len(ss))
+	for _, s := range ss {
+		out = append(out, s.Reveal())
+	}
+	return out
+}
+
+// secretMap reveals m (tests only); nil stays nil.
+func secretMap(m map[string]diag.Secret) map[string]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v.Reveal()
+	}
+	return out
 }
 
 // --- core tests ---

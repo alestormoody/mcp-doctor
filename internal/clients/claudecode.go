@@ -4,7 +4,11 @@
 
 package clients
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
+)
 
 func claudeCodeCandidates(env Env) []Candidate {
 	var managed string
@@ -37,3 +41,9 @@ func claudeCodeHomes(env Env) []string {
 	}
 	return []string{filepath.Join(env.Home, ".claude")}
 }
+
+// parseClaudeCode maps the client's config files onto Servers. Placeholder: filled in by the client's parse plan.
+func parseClaudeCode(Env, []Loaded) ([]Server, []diag.Finding) { return nil, nil }
+
+// claudeCodeRank is the client's scope precedence for markShadowed. Placeholder: filled in by the client's parse plan.
+func claudeCodeRank(Source) (int, bool) { return 0, false }

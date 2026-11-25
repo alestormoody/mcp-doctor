@@ -7,6 +7,8 @@ package clients
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
 )
 
 var vscodeVariants = []struct{ dir, label string }{{"Code", ""}, {"Code - Insiders", "Insiders"}}
@@ -53,3 +55,6 @@ func vscodeHomes(env Env) []string {
 	cp, _ := copilotHome(env)
 	return append(hs, cp)
 }
+
+// parseVSCode maps the client's config files onto Servers. Placeholder: filled in by the client's parse plan.
+func parseVSCode(Env, []Loaded) ([]Server, []diag.Finding) { return nil, nil }

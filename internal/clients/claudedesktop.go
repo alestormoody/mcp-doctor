@@ -3,7 +3,11 @@
 
 package clients
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
+)
 
 const claudeDesktopFile = "claude_desktop_config.json"
 
@@ -30,3 +34,6 @@ func claudeDesktopHomes(env Env) []string {
 	}
 	return hs
 }
+
+// parseClaudeDesktop maps the client's config files onto Servers. Placeholder: filled in by the client's parse plan.
+func parseClaudeDesktop(Env, []Loaded) ([]Server, []diag.Finding) { return nil, nil }

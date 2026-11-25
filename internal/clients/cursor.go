@@ -3,7 +3,11 @@
 
 package clients
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
+)
 
 func cursorCandidates(env Env) []Candidate {
 	return []Candidate{
@@ -13,3 +17,6 @@ func cursorCandidates(env Env) []Candidate {
 }
 
 func cursorHomes(env Env) []string { return []string{filepath.Join(env.Home, ".cursor")} }
+
+// parseCursor maps the client's config files onto Servers. Placeholder: filled in by the client's parse plan.
+func parseCursor(Env, []Loaded) ([]Server, []diag.Finding) { return nil, nil }

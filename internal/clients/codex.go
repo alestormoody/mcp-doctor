@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/alestormoody/mcp-doctor/internal/diag"
 )
 
 // codexHome is $CODEX_HOME, else ~/.codex; label is "CODEX_HOME" when the variable set it.
@@ -64,3 +66,9 @@ func codexHomes(env Env) []string {
 	home, _ := codexHome(env)
 	return []string{home}
 }
+
+// parseCodex maps the client's config files onto Servers. Placeholder: filled in by the client's parse plan.
+func parseCodex(Env, []Loaded) ([]Server, []diag.Finding) { return nil, nil }
+
+// codexRank is the client's scope precedence for markShadowed. Placeholder: filled in by the client's parse plan.
+func codexRank(Source) (int, bool) { return 0, false }
