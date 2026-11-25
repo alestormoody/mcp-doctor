@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "no-url": { "type": "sse" },
+    "bad-cmd": { "command": ["node", "x"] },
+    "typo": { "comand": "node", "command": "node" },
+    "ok": { "url": "https://ok.example/mcp" }
+  }
+}
