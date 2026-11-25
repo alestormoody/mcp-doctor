@@ -1,0 +1,5 @@
+[mcp_servers]
+docs = { command = "npx", args = ["--token", "CANARY-a"], env = { K = "CANARY-e" } }
+
+[other]
+x = 1

@@ -1,0 +1,10 @@
+[mcp_servers.remote]
+url = "https://h.example/mcp/CANARY-p"
+http_headers = { Authorization = "Bearer CANARY-h" }
+env_http_headers = { X-Key = "MY_KEY" }
+bearer_token_env_var = "TOKEN_VAR"
+enabled = false
+env_vars = ["A", { name = "B", source = "local" }]
+
+[mcp_servers.remote.oauth]
+client_secret = "CANARY-s"
